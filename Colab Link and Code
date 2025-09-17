@@ -1,0 +1,278 @@
+
+https://colab.research.google.com/drive/1nqQ6xkZhVn-i8v5dqLVGYw2lXYoUyrfM?usp=sharing
+
+#ZomatoFinal
+
+
+[ ]
+# First, let's install and import necessary libraries
+!pip install kagglehub
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+import warnings
+warnings.filterwarnings('ignore')
+…print("\nFirst 5 rows:")
+df.head()
+
+
+[ ]
+# Check for missing values
+print("Missing Values:")
+print(df.isnull().sum())
+
+# Basic statistics
+print("\nBasic Statistics:")
+display(df.describe(include='all')) # Include all columns for describe
+
+# Data Cleaning
+# Let's handle missing values and prepare data for analysis
+
+# Drop irrelevant columns that were in the original dataset but not loaded
+# columns_to_drop = ['url', 'menu_item', 'reviews_list'] # These columns were not loaded
+columns_to_drop = ['phone'] # Keep phone as it has many missing values but might be useful
+
+# Check if columns exist before dropping
+existing_columns_to_drop = [col for col in columns_to_drop if col in df.columns]
+df_clean = df.drop(columns=existing_columns_to_drop, errors='ignore')
+
+# Handle missing values
+# Clean and convert 'rate' column
+df_clean['rate'] = df_clean['rate'].astype(str).str.replace('/5', '', regex=False)
+df_clean['rate'] = df_clean['rate'].replace('NEW', np.nan).replace('-', np.nan)
+df_clean['rate'] = pd.to_numeric(df_clean['rate'], errors='coerce')
+
+
+# Convert 'approx_cost(for two people)' to numeric
+df_clean['approx_cost(for two people)'] = df_clean['approx_cost(for two people)'].astype(str).str.replace(',', '', regex=False)
+df_clean['approx_cost(for two people)'] = pd.to_numeric(df_clean['approx_cost(for two people)'], errors='coerce')
+
+# Fill missing values in numeric columns with median
+df_clean['approx_cost(for two people)'] = df_clean['approx_cost(for two people)'].fillna(df_clean['approx_cost(for two people)'].median())
+df_clean['rate'] = df_clean['rate'].fillna(df_clean['rate'].median())
+df_clean['votes'] = pd.to_numeric(df_clean['votes'], errors='coerce').fillna(0) # Convert votes to numeric and fill missing with 0
+
+
+# Clean categorical columns
+df_clean['rest_type'] = df_clean['rest_type'].fillna('Unknown')
+df_clean['location'] = df_clean['location'].fillna('Unknown')
+df_clean['cuisines'] = df_clean['cuisines'].fillna('Unknown')
+df_clean['dish_liked'] = df_clean['dish_liked'].fillna('Unknown') # Fill dish_liked as it has many missing values
+df_clean['listed_in(type)'] = df_clean['listed_in(type)'].fillna(df_clean['listed_in(type)'].mode()[0])
+
+
+print("Data cleaning completed!")
+
+# Display info of cleaned data
+print("\nCleaned Dataset Info:")
+df_clean.info()
+print("\nMissing Values after Cleaning:")
+print(df_clean.isnull().sum())
+print("\nFirst 5 rows of cleaned data:")
+display(df_clean.head())
+
+
+[ ]
+# 1. Distribution of Ratings
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+sns.histplot(df_clean['rate'].dropna(), bins=20, kde=True)
+plt.title('Distribution of Restaurant Ratings')
+plt.xlabel('Rating')
+plt.ylabel('Frequency')
+
+plt.subplot(1, 2, 2)
+sns.boxplot(y=df_clean['rate'])
+plt.title('Box Plot of Restaurant Ratings')
+plt.tight_layout()
+plt.show()
+
+# 2. Top 10 locations with most restaurants
+plt.figure(figsize=(12, 6))
+top_locations = df_clean['location'].value_counts().head(10)
+sns.barplot(x=top_locations.values, y=top_locations.index)
+plt.title('Top 10 Locations with Most Restaurants')
+plt.xlabel('Number of Restaurants')
+plt.ylabel('Location')
+plt.show()
+
+# 3. Distribution of approximate cost for two people
+plt.figure(figsize=(12, 6))
+sns.histplot(df_clean['approx_cost(for two people)'], bins=30, kde=True)
+plt.title('Distribution of Approximate Cost for Two People')
+plt.xlabel('Cost (₹)')
+plt.ylabel('Frequency')
+plt.show()
+
+# 4. Online delivery vs dine-in
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+online_delivery = df_clean['online_order'].value_counts()
+plt.pie(online_delivery.values, labels=online_delivery.index, autopct='%1.1f%%')
+plt.title('Online Order Availability')
+
+plt.subplot(1, 2, 2)
+table_booking = df_clean['book_table'].value_counts()
+plt.pie(table_booking.values, labels=table_booking.index, autopct='%1.1f%%')
+plt.title('Table Booking Availability')
+plt.tight_layout()
+plt.show()
+
+# 5. Top 10 cuisines
+plt.figure(figsize=(12, 8))
+# Split cuisines and count occurrences
+all_cuisines = df_clean['cuisines'].str.split(', ').explode()
+top_cuisines = all_cuisines.value_counts().head(10)
+sns.barplot(x=top_cuisines.values, y=top_cuisines.index)
+plt.title('Top 10 Most Popular Cuisines')
+plt.xlabel('Number of Restaurants')
+plt.ylabel('Cuisine')
+plt.show()
+
+# 6. Relationship between cost and rating
+plt.figure(figsize=(12, 6))
+sns.scatterplot(x='rate', y='approx_cost(for two people)', data=df_clean, alpha=0.6)
+plt.title('Relationship between Rating and Cost for Two People')
+plt.xlabel('Rating')
+plt.ylabel('Cost (₹)')
+plt.show()
+
+# 7. Restaurant type distribution
+plt.figure(figsize=(12, 8))
+top_rest_types = df_clean['rest_type'].value_counts().head(10)
+sns.barplot(x=top_rest_types.values, y=top_rest_types.index)
+plt.title('Top 10 Restaurant Types')
+plt.xlabel('Number of Restaurants')
+plt.ylabel('Restaurant Type')
+plt.show()
+
+# 8. Average rating by online order availability
+plt.figure(figsize=(10, 6))
+avg_rating_online = df_clean.groupby('online_order')['rate'].mean()
+sns.barplot(x=avg_rating_online.index, y=avg_rating_online.values)
+plt.title('Average Rating by Online Order Availability')
+plt.xlabel('Online Order Available')
+plt.ylabel('Average Rating')
+plt.show()
+
+# 9. Heatmap of correlations
+plt.figure(figsize=(10, 8))
+numeric_df = df_clean.select_dtypes(include=[np.number])
+correlation_matrix = numeric_df.corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0)
+plt.title('Correlation Heatmap')
+plt.show()
+
+# 10. Distribution of votes
+plt.figure(figsize=(12, 6))
+sns.histplot(df_clean['votes'], bins=50, kde=True)
+plt.title('Distribution of Votes')
+plt.xlabel('Number of Votes')
+plt.ylabel('Frequency')
+plt.xlim(0, df_clean['votes'].quantile(0.95))  # Limit to 95th percentile for better visualization
+plt.show()
+
+
+[ ]
+# Advanced Analysis
+
+# 11. Price range vs rating
+df_clean['price_range'] = pd.cut(df_clean['approx_cost(for two people)'],
+                                bins=[0, 300, 600, 1200, np.inf],
+                                labels=['Budget', 'Moderate', 'Expensive', 'Premium'])
+
+plt.figure(figsize=(12, 6))
+sns.boxplot(x='price_range', y='rate', data=df_clean)
+plt.title('Rating Distribution by Price Range')
+plt.xlabel('Price Range')
+plt.ylabel('Rating')
+plt.show()
+
+# 12. Top restaurants by votes in each location
+top_restaurants = df_clean.nlargest(20, 'votes')[['name', 'location', 'rate', 'votes', 'cuisines']]
+print("Top 20 Restaurants by Votes:")
+print(top_restaurants)
+
+# 13. Cuisine combination analysis
+from collections import Counter
+from itertools import combinations
+
+# Get all cuisine pairs
+cuisine_pairs = []
+for cuisines in df_clean['cuisines'].dropna():
+    if ',' in cuisines:
+        cuisine_list = [c.strip() for c in cuisines.split(',')]
+        pairs = list(combinations(cuisine_list, 2))
+        cuisine_pairs.extend(pairs)
+
+# Count most common pairs
+pair_counts = Counter(cuisine_pairs).most_common(10)
+
+plt.figure(figsize=(12, 8))
+pairs, counts = zip(*pair_counts)
+pair_labels = [f"{p[0]} & {p[1]}" for p in pairs]
+sns.barplot(x=list(counts), y=pair_labels)
+plt.title('Top 10 Most Common Cuisine Combinations')
+plt.xlabel('Number of Occurrences')
+plt.ylabel('Cuisine Pair')
+plt.show()
+
+
+[ ]
+# Summary Statistics
+print("=== ZOMATO DATASET ANALYSIS SUMMARY ===\n")
+print(f"Total Restaurants: {len(df_clean)}")
+print(f"Average Rating: {df_clean['rate'].mean():.2f}")
+print(f"Average Cost for Two: ₹{df_clean['approx_cost(for two people)'].mean():.2f}")
+print(f"Total Locations: {df_clean['location'].nunique()}")
+print(f"Total Cuisine Types: {df_clean['cuisines'].nunique()}")
+print(f"Percentage with Online Order: {df_clean['online_order'].value_counts(normalize=True)['Yes']*100:.1f}%")
+print(f"Percentage with Table Booking: {df_clean['book_table'].value_counts(normalize=True)['Yes']*100:.1f}%")
+
+# Top performers
+top_rated = df_clean.nlargest(5, 'rate')[['name', 'rate', 'location', 'cuisines']]
+print("\nTop 5 Rated Restaurants:")
+print(top_rated.to_string(index=False))
+=== ZOMATO DATASET ANALYSIS SUMMARY ===
+
+Total Restaurants: 56252
+Average Rating: 3.70
+Average Cost for Two: ₹541.94
+Total Locations: 2921
+Total Cuisine Types: 5554
+Percentage with Online Order: 54.1%
+Percentage with Table Booking: 11.5%
+
+Top 5 Rated Restaurants:
+                       name  rate      location                                                      cuisines
+Byg Brewski Brewing Company   4.9 Sarjapur Road Continental, North Indian, Italian, South Indian, Finger Food
+Byg Brewski Brewing Company   4.9 Sarjapur Road Continental, North Indian, Italian, South Indian, Finger Food
+Byg Brewski Brewing Company   4.9 Sarjapur Road Continental, North Indian, Italian, South Indian, Finger Food
+     Belgian Waffle Factory   4.9  Brigade Road                                                      Desserts
+     Belgian Waffle Factory   4.9  Brigade Road                                                      Desserts
+Multiple visualizations using Matplotlib and Seaborn:
+
+Distribution plots
+
+Bar charts
+
+Pie charts
+
+Scatter plots
+
+Heatmaps
+
+Box plots
+
+Advanced analysis including:
+
+Price range categorization
+
+Top restaurants by votes
+
+Cuisine combination analysis
+
+Colab paid products - Cancel contracts here
